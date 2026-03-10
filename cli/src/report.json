@@ -1,0 +1,25 @@
+{
+  "scan_metadata": {
+    "scan_date": "2026-03-10T14:27:03.560636+00:00",
+    "project_path": "../../test-projects/sample-vulnerable-app",
+    "scan_duration_ms": 0
+  },
+  "vulnerabilities": [
+    {
+      "id": "MISSING_NSC_001",
+      "severity": "MEDIUM",
+      "cvss_score": 5.3,
+      "category": "Network Security Config",
+      "description": "Файл network_security_config.xml не найден. Приложение использует настройки Android по умолчанию.",
+      "location": "../../test-projects/sample-vulnerable-app/app/src/main/res/xml/network_security_config.xml",
+      "recommendation": "Создайте network_security_config.xml и укажите его в AndroidManifest.xml через android:networkSecurityConfig."
+    }
+  ],
+  "summary": {
+    "total_issues": 1,
+    "critical": 0,
+    "high": 0,
+    "medium": 1,
+    "low": 0
+  }
+}

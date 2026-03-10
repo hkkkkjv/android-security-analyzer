@@ -1,0 +1,61 @@
+{
+  "scan_metadata": {
+    "scan_date": "2026-03-10T15:07:50.391510+00:00",
+    "project_path": "10-all-issues",
+    "scan_duration_ms": 1
+  },
+  "vulnerabilities": [
+    {
+      "id": "CLEARTEXT_BASE_001",
+      "severity": "CRITICAL",
+      "cvss_score": 9.8,
+      "category": "Insecure Communication",
+      "description": "cleartextTrafficPermitted=\"true\" в base-config разрешает незашифрованный HTTP для всего приложения.",
+      "location": "10-all-issues/app/src/main/res/xml/network_security_config.xml",
+      "recommendation": "Установите cleartextTrafficPermitted=\"false\" и используйте HTTPS для всех соединений."
+    },
+    {
+      "id": "CLEARTEXT_DOMAIN_001",
+      "severity": "HIGH",
+      "cvss_score": 7.5,
+      "category": "Insecure Communication",
+      "description": "cleartextTrafficPermitted=\"true\" разрешён для домена: api.example.com.",
+      "location": "10-all-issues/app/src/main/res/xml/network_security_config.xml",
+      "recommendation": "Уберите cleartextTrafficPermitted=\"true\" для api.example.com и переведите API на HTTPS."
+    },
+    {
+      "id": "MISSING_PINNING_001",
+      "severity": "HIGH",
+      "cvss_score": 7.4,
+      "category": "Certificate Pinning",
+      "description": "Отсутствует <pin-set> для домена: api.example.com. Уязвимость к Man-in-the-Middle атакам.",
+      "location": "10-all-issues/app/src/main/res/xml/network_security_config.xml",
+      "recommendation": "Добавьте <pin-set> с SHA-256 хэшами сертификата для api.example.com. Укажите резервный пин для ротации."
+    },
+    {
+      "id": "EMPTY_PINNING_001",
+      "severity": "HIGH",
+      "cvss_score": 7.4,
+      "category": "Certificate Pinning",
+      "description": "Тег <pin-set> присутствует, но не содержит ни одного <pin> для домена: cdn.example.com.",
+      "location": "10-all-issues/app/src/main/res/xml/network_security_config.xml",
+      "recommendation": "Добавьте хотя бы два <pin digest=\"SHA-256\"> в pin-set для cdn.example.com: основной и резервный."
+    },
+    {
+      "id": "USER_CERTS_001",
+      "severity": "MEDIUM",
+      "cvss_score": 5.9,
+      "category": "Insecure Configuration",
+      "description": "base-config доверяет пользовательским сертификатам (src=\"user\"). Позволяет перехватывать HTTPS-трафик.",
+      "location": "10-all-issues/app/src/main/res/xml/network_security_config.xml",
+      "recommendation": "Удалите <certificates src=\"user\"/> из base-config. Используйте только системные сертификаты или certificate pinning."
+    }
+  ],
+  "summary": {
+    "total_issues": 5,
+    "critical": 1,
+    "high": 3,
+    "medium": 1,
+    "low": 0
+  }
+}
