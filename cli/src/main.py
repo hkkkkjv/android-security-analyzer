@@ -7,7 +7,7 @@ import datetime
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from analyzer import NetworkSecurityConfigAnalyzer
+from analyzer import NetworkSecurityConfigAnalyzer, InsecureHttpAnalyzer
 
 COLORS = {
     "CRITICAL": "\033[91m",
@@ -17,6 +17,8 @@ COLORS = {
     "RESET":    "\033[0m",
     "BOLD":     "\033[1m",
 }
+
+SEVERITY_ORDER = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3}
 
 
 def print_vulnerability(v):
@@ -96,8 +98,14 @@ def main():
     print(f"Анализируем: {project_path}\n")
 
     start = time.time()
-    analyzer = NetworkSecurityConfigAnalyzer()
-    vulnerabilities = analyzer.analyze(project_path)
+
+    nsc_analyzer = NetworkSecurityConfigAnalyzer()
+    http_analyzer = InsecureHttpAnalyzer()
+
+    vulnerabilities = nsc_analyzer.analyze(project_path)
+    vulnerabilities += http_analyzer.analyze(project_path)
+    vulnerabilities.sort(key=lambda v: SEVERITY_ORDER.get(v.severity, 99))
+
     duration_ms = round((time.time() - start) * 1000)
 
     if not vulnerabilities:

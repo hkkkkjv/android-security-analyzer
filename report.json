@@ -1,8 +1,8 @@
 {
   "scan_metadata": {
-    "scan_date": "2026-03-10T15:07:50.391510+00:00",
-    "project_path": "10-all-issues",
-    "scan_duration_ms": 1
+    "scan_date": "2026-03-30T18:47:13.669293+00:00",
+    "project_path": "test-projects/sample-vulnerable-app",
+    "scan_duration_ms": 2
   },
   "vulnerabilities": [
     {
@@ -11,17 +11,8 @@
       "cvss_score": 9.8,
       "category": "Insecure Communication",
       "description": "cleartextTrafficPermitted=\"true\" в base-config разрешает незашифрованный HTTP для всего приложения.",
-      "location": "10-all-issues/app/src/main/res/xml/network_security_config.xml",
+      "location": "test-projects/sample-vulnerable-app/app/src/main/res/xml/network_security_config.xml",
       "recommendation": "Установите cleartextTrafficPermitted=\"false\" и используйте HTTPS для всех соединений."
-    },
-    {
-      "id": "CLEARTEXT_DOMAIN_001",
-      "severity": "HIGH",
-      "cvss_score": 7.5,
-      "category": "Insecure Communication",
-      "description": "cleartextTrafficPermitted=\"true\" разрешён для домена: api.example.com.",
-      "location": "10-all-issues/app/src/main/res/xml/network_security_config.xml",
-      "recommendation": "Уберите cleartextTrafficPermitted=\"true\" для api.example.com и переведите API на HTTPS."
     },
     {
       "id": "MISSING_PINNING_001",
@@ -29,17 +20,98 @@
       "cvss_score": 7.4,
       "category": "Certificate Pinning",
       "description": "Отсутствует <pin-set> для домена: api.example.com. Уязвимость к Man-in-the-Middle атакам.",
-      "location": "10-all-issues/app/src/main/res/xml/network_security_config.xml",
+      "location": "test-projects/sample-vulnerable-app/app/src/main/res/xml/network_security_config.xml",
       "recommendation": "Добавьте <pin-set> с SHA-256 хэшами сертификата для api.example.com. Укажите резервный пин для ротации."
     },
     {
-      "id": "EMPTY_PINNING_001",
+      "id": "HTTP_IN_RETROFIT_001",
       "severity": "HIGH",
-      "cvss_score": 7.4,
-      "category": "Certificate Pinning",
-      "description": "Тег <pin-set> присутствует, но не содержит ни одного <pin> для домена: cdn.example.com.",
-      "location": "10-all-issues/app/src/main/res/xml/network_security_config.xml",
-      "recommendation": "Добавьте хотя бы два <pin digest=\"SHA-256\"> в pin-set для cdn.example.com: основной и резервный."
+      "cvss_score": 7.5,
+      "category": "Insecure Communication",
+      "description": "Retrofit-аннотация содержит небезопасный HTTP URL: http://users.example.com/list",
+      "location": "test-projects/sample-vulnerable-app/app/src/main/java/com/example/NetworkConfig.kt:10",
+      "recommendation": "Замените http:// на https:// в Retrofit-аннотации или используйте относительный путь с безопасным baseUrl."
+    },
+    {
+      "id": "HTTP_IN_RETROFIT_001",
+      "severity": "HIGH",
+      "cvss_score": 7.5,
+      "category": "Insecure Communication",
+      "description": "Retrofit-аннотация содержит небезопасный HTTP URL: http://users.example.com/create",
+      "location": "test-projects/sample-vulnerable-app/app/src/main/java/com/example/NetworkConfig.kt:13",
+      "recommendation": "Замените http:// на https:// в Retrofit-аннотации или используйте относительный путь с безопасным baseUrl."
+    },
+    {
+      "id": "HTTP_IN_CODE_001",
+      "severity": "HIGH",
+      "cvss_score": 7.5,
+      "category": "Insecure Communication",
+      "description": "Небезопасный HTTP URL в исходном коде: http://users.example.com",
+      "location": "test-projects/sample-vulnerable-app/app/src/main/java/com/example/NetworkConfig.kt:26",
+      "recommendation": "Замените http:// на https://. Для baseUrl Retrofit используйте строку начинающуюся с https://."
+    },
+    {
+      "id": "HTTP_IN_CODE_001",
+      "severity": "HIGH",
+      "cvss_score": 7.5,
+      "category": "Insecure Communication",
+      "description": "Небезопасный HTTP URL в исходном коде: http://auth.example.com/login",
+      "location": "test-projects/sample-vulnerable-app/app/src/main/java/com/example/AuthManager.kt:7",
+      "recommendation": "Замените http:// на https://. Для baseUrl Retrofit используйте строку начинающуюся с https://."
+    },
+    {
+      "id": "HTTP_IN_CODE_001",
+      "severity": "HIGH",
+      "cvss_score": 7.5,
+      "category": "Insecure Communication",
+      "description": "Небезопасный HTTP URL в исходном коде: http://auth.example.com/token",
+      "location": "test-projects/sample-vulnerable-app/app/src/main/java/com/example/AuthManager.kt:8",
+      "recommendation": "Замените http:// на https://. Для baseUrl Retrofit используйте строку начинающуюся с https://."
+    },
+    {
+      "id": "HTTP_IN_WEBVIEW_001",
+      "severity": "HIGH",
+      "cvss_score": 7.5,
+      "category": "Insecure Communication",
+      "description": "WebView.loadUrl() загружает страницу по незашифрованному HTTP: http://auth.example.com/login",
+      "location": "test-projects/sample-vulnerable-app/app/src/main/java/com/example/AuthManager.kt:12",
+      "recommendation": "Замените http:// на https:// в вызове WebView.loadUrl()."
+    },
+    {
+      "id": "HTTP_IN_RETROFIT_001",
+      "severity": "HIGH",
+      "cvss_score": 7.5,
+      "category": "Insecure Communication",
+      "description": "Retrofit-аннотация содержит небезопасный HTTP URL: http://api.example.com/users",
+      "location": "test-projects/sample-vulnerable-app/app/src/main/java/com/example/ApiClient.kt:9",
+      "recommendation": "Замените http:// на https:// в Retrofit-аннотации или используйте относительный путь с безопасным baseUrl."
+    },
+    {
+      "id": "HTTP_IN_RETROFIT_001",
+      "severity": "HIGH",
+      "cvss_score": 7.5,
+      "category": "Insecure Communication",
+      "description": "Retrofit-аннотация содержит небезопасный HTTP URL: http://api.example.com/login",
+      "location": "test-projects/sample-vulnerable-app/app/src/main/java/com/example/ApiClient.kt:12",
+      "recommendation": "Замените http:// на https:// в Retrofit-аннотации или используйте относительный путь с безопасным baseUrl."
+    },
+    {
+      "id": "HTTP_IN_CODE_001",
+      "severity": "HIGH",
+      "cvss_score": 7.5,
+      "category": "Insecure Communication",
+      "description": "Небезопасный HTTP URL в исходном коде: http://api.example.com",
+      "location": "test-projects/sample-vulnerable-app/app/src/main/java/com/example/ApiClient.kt:23",
+      "recommendation": "Замените http:// на https://. Для baseUrl Retrofit используйте строку начинающуюся с https://."
+    },
+    {
+      "id": "HTTP_IN_WEBVIEW_001",
+      "severity": "HIGH",
+      "cvss_score": 7.5,
+      "category": "Insecure Communication",
+      "description": "WebView.loadUrl() загружает страницу по незашифрованному HTTP: http://legacy.example.com/page",
+      "location": "test-projects/sample-vulnerable-app/app/src/main/java/com/example/ApiClient.kt:29",
+      "recommendation": "Замените http:// на https:// в вызове WebView.loadUrl()."
     },
     {
       "id": "USER_CERTS_001",
@@ -47,15 +119,33 @@
       "cvss_score": 5.9,
       "category": "Insecure Configuration",
       "description": "base-config доверяет пользовательским сертификатам (src=\"user\"). Позволяет перехватывать HTTPS-трафик.",
-      "location": "10-all-issues/app/src/main/res/xml/network_security_config.xml",
+      "location": "test-projects/sample-vulnerable-app/app/src/main/res/xml/network_security_config.xml",
       "recommendation": "Удалите <certificates src=\"user\"/> из base-config. Используйте только системные сертификаты или certificate pinning."
+    },
+    {
+      "id": "HTTP_IN_STRINGS_001",
+      "severity": "MEDIUM",
+      "cvss_score": 5.3,
+      "category": "Insecure Communication",
+      "description": "Небезопасный HTTP URL в строковом ресурсе \"api_base_url\": http://api.example.com/v1",
+      "location": "test-projects/sample-vulnerable-app/app/src/main/res/values/strings.xml:2",
+      "recommendation": "Замените http:// на https:// в строковом ресурсе \"api_base_url\"."
+    },
+    {
+      "id": "HTTP_IN_STRINGS_001",
+      "severity": "MEDIUM",
+      "cvss_score": 5.3,
+      "category": "Insecure Communication",
+      "description": "Небезопасный HTTP URL в строковом ресурсе \"cdn_url\": http://cdn.example.com/assets",
+      "location": "test-projects/sample-vulnerable-app/app/src/main/res/values/strings.xml:3",
+      "recommendation": "Замените http:// на https:// в строковом ресурсе \"cdn_url\"."
     }
   ],
   "summary": {
-    "total_issues": 5,
+    "total_issues": 15,
     "critical": 1,
-    "high": 3,
-    "medium": 1,
+    "high": 11,
+    "medium": 3,
     "low": 0
   }
 }

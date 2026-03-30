@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">SampleApp</string>
+    <string name="api_base_url">http://api.example.com/v1</string>
+    <string name="cdn_url">http://cdn.example.com/assets</string>
+    <string name="secure_url">https://secure.example.com</string>
+</resources>
