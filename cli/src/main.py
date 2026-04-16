@@ -5,18 +5,10 @@ import sys
 import time
 import datetime
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-
-from analyzer import NetworkSecurityConfigAnalyzer, InsecureHttpAnalyzer
-
-COLORS = {
-    "CRITICAL": "\033[91m",
-    "HIGH":     "\033[93m",
-    "MEDIUM":   "\033[33m",
-    "LOW":      "\033[92m",
-    "RESET":    "\033[0m",
-    "BOLD":     "\033[1m",
-}
+from network_analyzer import NetworkSecurityConfigAnalyzer, InsecureHttpAnalyzer
+from pinning_analyzer import CertificatePinningCodeAnalyzer
+from manifest_analyzer import AndroidManifestAnalyzer
+from constants import SEVERITY_ORDER, COLORS
 
 SEVERITY_ORDER = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3}
 
@@ -101,9 +93,13 @@ def main():
 
     nsc_analyzer = NetworkSecurityConfigAnalyzer()
     http_analyzer = InsecureHttpAnalyzer()
+    pinning_analyzer = CertificatePinningCodeAnalyzer()
+    manifest_analyzer = AndroidManifestAnalyzer()
 
     vulnerabilities = nsc_analyzer.analyze(project_path)
     vulnerabilities += http_analyzer.analyze(project_path)
+    vulnerabilities += pinning_analyzer.analyze(project_path)
+    vulnerabilities += manifest_analyzer.analyze(project_path)
     vulnerabilities.sort(key=lambda v: SEVERITY_ORDER.get(v.severity, 99))
 
     duration_ms = round((time.time() - start) * 1000)
