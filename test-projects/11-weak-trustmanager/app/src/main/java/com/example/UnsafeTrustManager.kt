@@ -1,0 +1,10 @@
+import javax.net.ssl.X509TrustManager
+import java.security.cert.X509Certificate
+
+class UnsafeTrustManager : X509TrustManager {
+    override fun checkServerTrusted(chain: Array<out X509Certificate>?, authType: String?) {
+        // Пустая реализация — уязвимость!
+    }
+    override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?) {}
+    override fun getAcceptedIssuers(): Array<X509Certificate> = emptyArray()
+}
