@@ -1,0 +1,34 @@
+{
+  "scan_metadata": {
+    "scan_date": "2026-04-20T19:22:27.918667+00:00",
+    "project_path": "llm-experiments/block2/05-single-pin-borderline",
+    "scan_duration_ms": 2
+  },
+  "vulnerabilities": [
+    {
+      "id": "SINGLE_PIN_001",
+      "severity": "MEDIUM",
+      "cvss_score": 5.3,
+      "category": "Certificate Pinning",
+      "description": "В pin-set для домена api.example.com указан только один пин. При ротации сертификата приложение перестанет работать.",
+      "location": "llm-experiments/block2/05-single-pin-borderline/app/src/main/res/xml/network_security_config.xml:7",
+      "recommendation": "Добавьте резервный пин в pin-set для api.example.com на случай замены сертификата."
+    },
+    {
+      "id": "PINNING_SINGLE_005",
+      "severity": "MEDIUM",
+      "cvss_score": 5.3,
+      "category": "Certificate Pinning",
+      "description": "CertificatePinner содержит только один пин для домена 'api.example.com'. При ротации сертификата приложение перестанет работать.",
+      "location": "llm-experiments/block2/05-single-pin-borderline/app/src/main/java/com/example/CreateOkHttpClient.kt:12",
+      "recommendation": "Добавьте резервный пин через .addPin() для обеспечения бесперебойной работы при обновлении сертификата."
+    }
+  ],
+  "summary": {
+    "total_issues": 2,
+    "critical": 0,
+    "high": 0,
+    "medium": 2,
+    "low": 0
+  }
+}

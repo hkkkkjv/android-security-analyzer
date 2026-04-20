@@ -1,0 +1,25 @@
+{
+  "scan_metadata": {
+    "scan_date": "2026-04-20T19:22:38.121074+00:00",
+    "project_path": "llm-experiments/block2/06-custom-ssl-ambiguous",
+    "scan_duration_ms": 3
+  },
+  "vulnerabilities": [
+    {
+      "id": "PINNING_CUSTOM_SSL_004",
+      "severity": "HIGH",
+      "cvss_score": 7.5,
+      "category": "Certificate Pinning",
+      "description": "Используется кастомный sslSocketFactory без явного CertificatePinner. Возможна ослабленная проверка TLS.",
+      "location": "llm-experiments/block2/06-custom-ssl-ambiguous/app/src/main/java/com/example/CreateClient.kt:16",
+      "recommendation": "Проверьте, что кастомный SSLSocketFactory не отключает проверку сертификатов. Добавьте CertificatePinner для критичных доменов."
+    }
+  ],
+  "summary": {
+    "total_issues": 1,
+    "critical": 0,
+    "high": 1,
+    "medium": 0,
+    "low": 0
+  }
+}
