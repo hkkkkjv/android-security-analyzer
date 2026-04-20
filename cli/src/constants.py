@@ -84,8 +84,8 @@ class PinningPatterns:
     
     # Пустая реализация checkServerTrusted / checkClientTrusted
     EMPTY_TRUST_CHECK = re.compile(
-        r'check(Server|Client)Trusted\s*\([^)]*\)\s*\{[^}]*\}',
-        re.MULTILINE | re.DOTALL
+        r'check(Server|Client)Trusted\s*\([^)]*\)\s*\{\s*(?:return\s*;?)?\s*\}',
+        re.MULTILINE | re.DOTALL | re.IGNORECASE
     )
     
     # TrustManager, который не проверяет цепочку (возвращает без исключений)

@@ -1,0 +1,25 @@
+{
+  "scan_metadata": {
+    "scan_date": "2026-04-20T19:22:00.990245+00:00",
+    "project_path": "llm-experiments/block2/04-secure-implementation",
+    "scan_duration_ms": 3
+  },
+  "vulnerabilities": [
+    {
+      "id": "PINNING_TRUST_ALL_001",
+      "severity": "CRITICAL",
+      "cvss_score": 9.1,
+      "category": "Certificate Pinning",
+      "description": "Обнаружен TrustManager, который не проверяет сертификаты сервера (TrustAll). Позволяет любую подмену сертификата.",
+      "location": "llm-experiments/block2/04-secure-implementation/app/src/main/java/com/example/SecureClient.kt:27",
+      "recommendation": "Реализуйте корректную проверку цепочки сертификатов в checkServerTrusted() или используйте стандартный TrustManager."
+    }
+  ],
+  "summary": {
+    "total_issues": 1,
+    "critical": 1,
+    "high": 0,
+    "medium": 0,
+    "low": 0
+  }
+}

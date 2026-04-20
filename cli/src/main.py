@@ -10,9 +10,6 @@ from pinning_analyzer import CertificatePinningCodeAnalyzer
 from manifest_analyzer import AndroidManifestAnalyzer
 from constants import SEVERITY_ORDER, COLORS
 
-SEVERITY_ORDER = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3}
-
-
 def print_vulnerability(v):
     color = COLORS.get(v.severity, "")
     reset = COLORS["RESET"]

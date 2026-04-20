@@ -1,0 +1,25 @@
+{
+  "scan_metadata": {
+    "scan_date": "2026-04-20T19:21:18.798860+00:00",
+    "project_path": "llm-experiments/block2/02-hostname-bypass",
+    "scan_duration_ms": 2
+  },
+  "vulnerabilities": [
+    {
+      "id": "PINNING_HOSTNAME_BYPASS_002",
+      "severity": "CRITICAL",
+      "cvss_score": 9.1,
+      "category": "Certificate Pinning",
+      "description": "HostnameVerifier всегда возвращает true, отключая проверку соответствия имени хоста сертификату.",
+      "location": "llm-experiments/block2/02-hostname-bypass/app/src/main/java/com/example/BypassVerifier.kt:5",
+      "recommendation": "Реализуйте корректную проверку hostname или используйте OkHttp's default verifier."
+    }
+  ],
+  "summary": {
+    "total_issues": 1,
+    "critical": 1,
+    "high": 0,
+    "medium": 0,
+    "low": 0
+  }
+}
