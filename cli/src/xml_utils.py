@@ -73,42 +73,43 @@ def parse_xml_with_linenumbers(filepath: str) -> tuple[ET.ElementTree, Dict[ET.E
     """
     Парсит XML-файл и возвращает дерево + маппинг элементов на номера строк.
     
-    Поскольку xml.etree.ElementTree не сохраняет lineno нативно,
-    используем пост-обработку: ищем теги в исходном тексте.
-    
-    Args:
-        filepath: Путь к XML-файлу
-    
-    Returns:
-        tuple: (ElementTree, dict[element, line_number])
     """
-    # Читаем исходный файл построчно
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.readlines()
     
-    # Парсим дерево стандартным способом
     tree = ET.parse(filepath)
     root = tree.getroot()
     
-    # Строим маппинг: элемент -> номер строки
     element_to_line: Dict[ET.Element, int] = {}
     
-    # Рекурсивно ищем элементы в исходном тексте
-    def find_element_lines(element: ET.Element, start_line: int = 1):
+    def find_element_lines(element: ET.Element, start_line: int = 1, tag_index: Dict[str, int] = None):
+        if tag_index is None:
+            tag_index = {}
+        
         tag = element.tag
-        # Ищем открывающий тег, начиная с start_line
+        # Убираем namespace из тега для поиска
+        tag_name = tag.split('}')[-1] if '}' in tag else tag
+        
+        # Считаем, какой по счёту этот тег с таким именем
+        tag_index[tag_name] = tag_index.get(tag_name, 0) + 1
+        current_index = tag_index[tag_name]
+        
+        # Ищем открывающий тег, учитывая порядковый номер
+        found_count = 0
         for i in range(start_line - 1, len(lines)):
             line = lines[i]
-            # Простая эвристика: ищем <tagname или <ns:tagname
+            # Ищем тег с учётом namespace
             if f"<{tag}" in line or f"<{tag}>" in line or f"<{tag} " in line:
-                element_to_line[element] = i + 1  # 1-based line number
-                # Рекурсивно ищем дочерние элементы, начиная со следующей строки
-                for child in element:
-                    find_element_lines(child, start_line=i + 2)
-                break
+                found_count += 1
+                if found_count == current_index:
+                    element_to_line[element] = i + 1  # 1-based line number
+                    # Рекурсивно ищем дочерние элементы
+                    child_index = {}
+                    for child in element:
+                        find_element_lines(child, start_line=i + 2, tag_index=child_index)
+                    break
     
     find_element_lines(root)
-    
     return tree, element_to_line
 
 

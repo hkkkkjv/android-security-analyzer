@@ -84,7 +84,7 @@ class PinningPatterns:
     
     # Пустая реализация checkServerTrusted / checkClientTrusted
     EMPTY_TRUST_CHECK = re.compile(
-        r'check(Server|Client)Trusted\s*\([^)]*\)\s*\{\s*(?:return\s*;?)?\s*\}',
+        r'check(Server|Client)Trusted\s*\([^)]*\)\s*\{[^}]*?(?://[^\n]*|/\*.*?\*/)?[^}]*?\}',
         re.MULTILINE | re.DOTALL | re.IGNORECASE
     )
     
@@ -218,6 +218,15 @@ class VulnerabilityTemplates:
         "category": "Certificate Pinning",
         "description": "В pin-set для домена {domain} указан только один пин. При ротации сертификата приложение перестанет работать.",
         "recommendation": "Добавьте резервный пин в pin-set для {domain} на случай замены сертификата."
+    }
+    
+    INVALID_PIN_HASH = {
+        "id": "INVALID_PIN_HASH_007",
+        "severity": "HIGH",
+        "cvss_score": 7.4,
+        "category": "Certificate Pinning",
+        "description": "Некорректный формат хэша в <pin> для домена '{domain}': ожидался SHA-256 в base64 (43 символа + '=').",
+        "recommendation": "Используйте команду: openssl x509 -in cert.pem -pubkey -noout | openssl pkey -pubin -outform DER | openssl dgst -sha256 -binary | base64"
     }
     
     # --- Insecure HTTP ---
