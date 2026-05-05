@@ -177,19 +177,71 @@ class NetworkSecurityConfigAnalyzer:
                         location=format_location(config_path, pin_lineno),
                         recommendation=VulnerabilityTemplates.EMPTY_PINNING["recommendation"].format(domain=domain_str)
                     ))
-                elif len(pins) == 1:
-                    pin_lineno = get_element_line_number(pins[0], line_mapping, default=pin_lineno)
-                    results.append(Vulnerability(
-                        id=VulnerabilityTemplates.SINGLE_PIN["id"],
-                        severity=VulnerabilityTemplates.SINGLE_PIN["severity"],
-                        cvss_score=VulnerabilityTemplates.SINGLE_PIN["cvss_score"],
-                        category=VulnerabilityTemplates.SINGLE_PIN["category"],
-                        description=VulnerabilityTemplates.SINGLE_PIN["description"].format(domain=domain_str),
-                        location=format_location(config_path, pin_lineno),
-                        recommendation=VulnerabilityTemplates.SINGLE_PIN["recommendation"].format(domain=domain_str)
-                    ))
+                else:
+                    for pin in pins:
+                        invalid_hash = self._validate_pin_hash(pin, domain_str, config_path, line_mapping)
+                        if invalid_hash:
+                            results.append(invalid_hash)
+                    
+                    # Проверка на один пин (риск ротации)
+                    if len(pins) == 1:
+                        pin_lineno = get_element_line_number(pins[0], line_mapping, default=pin_lineno)
+                        results.append(Vulnerability(
+                            id=VulnerabilityTemplates.SINGLE_PIN["id"],
+                            severity=VulnerabilityTemplates.SINGLE_PIN["severity"],
+                            cvss_score=VulnerabilityTemplates.SINGLE_PIN["cvss_score"],
+                            category=VulnerabilityTemplates.SINGLE_PIN["category"],
+                            description=VulnerabilityTemplates.SINGLE_PIN["description"].format(domain=domain_str),
+                            location=format_location(config_path, pin_lineno),
+                            recommendation=VulnerabilityTemplates.SINGLE_PIN["recommendation"].format(domain=domain_str)
+                        ))
         
         return results
+
+    def _validate_pin_hash(self, pin_element: ET.Element, domain: str, config_path: str, 
+                          line_mapping: Dict[ET.Element, int]) -> Optional[Vulnerability]:
+        """
+        Валидирует формат хэша в <pin> элементе.
+        
+        Проверяет:
+        - Наличие атрибута digest (должен быть SHA-256)
+        - Формат значения: base64-кодированный хэш (43 символа + '=' для SHA-256)
+        
+        Returns:
+            Vulnerability если хэш невалиден, None если всё ок
+        """
+        digest = pin_element.get("digest", "").upper()
+        pin_value = (pin_element.text or "").strip()
+        
+        # Проверка алгоритма хэширования
+        if digest and digest not in ["SHA-256", "SHA-384", "SHA-512"]:
+            lineno = get_element_line_number(pin_element, line_mapping)
+            return Vulnerability(
+                id=VulnerabilityTemplates.INVALID_PIN_HASH["id"],
+                severity=VulnerabilityTemplates.INVALID_PIN_HASH["severity"],
+                cvss_score=VulnerabilityTemplates.INVALID_PIN_HASH["cvss_score"],
+                category=VulnerabilityTemplates.INVALID_PIN_HASH["category"],
+                description=VulnerabilityTemplates.INVALID_PIN_HASH["description"].format(domain=domain),
+                location=format_location(config_path, lineno),
+                recommendation=VulnerabilityTemplates.INVALID_PIN_HASH["recommendation"]
+            )
+        
+        # Проверка формата base64 для SHA-256: 43 символа + '='
+        if digest == "SHA-256" or not digest:
+            # SHA-256 hash в base64: 32 байта = 43 символа base64 + '='
+            if not re.match(r'^[A-Za-z0-9+/]{43}=$', pin_value):
+                lineno = get_element_line_number(pin_element, line_mapping)
+                return Vulnerability(
+                    id=VulnerabilityTemplates.INVALID_PIN_HASH["id"],
+                    severity=VulnerabilityTemplates.INVALID_PIN_HASH["severity"],
+                    cvss_score=VulnerabilityTemplates.INVALID_PIN_HASH["cvss_score"],
+                    category=VulnerabilityTemplates.INVALID_PIN_HASH["category"],
+                    description=VulnerabilityTemplates.INVALID_PIN_HASH["description"].format(domain=domain),
+                    location=format_location(config_path, lineno),
+                    recommendation=VulnerabilityTemplates.INVALID_PIN_HASH["recommendation"]
+                )
+        
+        return None
 
 
 # =============================================================================

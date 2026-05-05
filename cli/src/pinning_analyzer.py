@@ -227,45 +227,45 @@ class CertificatePinningCodeAnalyzer:
         return results
 
     def _check_missing_pinning_any(self, filepath: str, content: str, lines: List[str]) -> List[Vulnerability]:
-	    """
-	    Детектит использование доменов без ANY pinning (ни в конфиге, ни в коде).
-	    
-	    """
-	    results = []
-	    
-	    # 1. Находим все домены с их позициями
-	    domain_matches: Dict[str, re.Match] = {}
-	    for match in HttpPatterns.HARDCODED_DOMAIN.finditer(content):
-	        domain = match.group(1)
-	        if domain and not domain.startswith("localhost") and not domain.startswith("127.0.0.1"):
-	            if domain not in domain_matches:
-	                domain_matches[domain] = match
-	    
-	    if not domain_matches:
-	        return results
-	    
-	    # 2. Для КАЖДОГО домена проверяем, есть ли его pinning в этом файле
-	    for domain, match in domain_matches.items():
-	        # Ищем .add("этот_домен", ...) в содержимом файла
-	        domain_pinner_pattern = rf'\.add\s*\(\s*["\']{re.escape(domain)}["\']\s*,\s*["\'](?:sha256/)?[A-Za-z0-9+/=]+["\']'
-	        has_pinning_for_domain = bool(re.search(domain_pinner_pattern, content, re.IGNORECASE))
-	        
-	        if not has_pinning_for_domain:
-	            line_num = content[:match.start()].count('\n') + 1
-	            snippet = lines[line_num - 1].strip() if line_num <= len(lines) else ""
-	            
-	            results.append(Vulnerability(
-	                id=VulnerabilityTemplates.PINNING_MISSING_ANY["id"],
-	                severity=VulnerabilityTemplates.PINNING_MISSING_ANY["severity"],
-	                cvss_score=VulnerabilityTemplates.PINNING_MISSING_ANY["cvss_score"],
-	                category=VulnerabilityTemplates.PINNING_MISSING_ANY["category"],
-	                description=VulnerabilityTemplates.PINNING_MISSING_ANY["description"].format(domain=domain),
-	                location=format_location(filepath, line_num),
-	                recommendation=VulnerabilityTemplates.PINNING_MISSING_ANY["recommendation"].format(domain=domain),
-	                code_snippet=snippet
-	            ))
-	    
-	    return results
+        """
+        Детектит использование доменов без ANY pinning (ни в конфиге, ни в коде).
+        
+        """
+        results = []
+        
+        # 1. Находим все домены с их позициями
+        domain_matches: Dict[str, re.Match] = {}
+        for match in HttpPatterns.HARDCODED_DOMAIN.finditer(content):
+            domain = match.group(1)
+            if domain and not domain.startswith("localhost") and not domain.startswith("127.0.0.1"):
+                if domain not in domain_matches:
+                    domain_matches[domain] = match
+        
+        if not domain_matches:
+            return results
+        
+        # 2. Для КАЖДОГО домена проверяем, есть ли его pinning в этом файле
+        for domain, match in domain_matches.items():
+            # Ищем .add("этот_домен", ...) в содержимом файла
+            domain_pinner_pattern = rf'\.add\s*\(\s*["\']{re.escape(domain)}["\']\s*,\s*["\'](?:sha256/)?[A-Za-z0-9+/=]+["\']'
+            has_pinning_for_domain = bool(re.search(domain_pinner_pattern, content, re.IGNORECASE))
+            
+            if not has_pinning_for_domain:
+                line_num = content[:match.start()].count('\n') + 1
+                snippet = lines[line_num - 1].strip() if line_num <= len(lines) else ""
+                
+                results.append(Vulnerability(
+                    id=VulnerabilityTemplates.PINNING_MISSING_ANY["id"],
+                    severity=VulnerabilityTemplates.PINNING_MISSING_ANY["severity"],
+                    cvss_score=VulnerabilityTemplates.PINNING_MISSING_ANY["cvss_score"],
+                    category=VulnerabilityTemplates.PINNING_MISSING_ANY["category"],
+                    description=VulnerabilityTemplates.PINNING_MISSING_ANY["description"].format(domain=domain),
+                    location=format_location(filepath, line_num),
+                    recommendation=VulnerabilityTemplates.PINNING_MISSING_ANY["recommendation"].format(domain=domain),
+                    code_snippet=snippet
+                ))
+        
+        return results
     
 
     def _check_hostname_bypass(self, filepath: str, content: str, lines: List[str]) -> List[Vulnerability]:

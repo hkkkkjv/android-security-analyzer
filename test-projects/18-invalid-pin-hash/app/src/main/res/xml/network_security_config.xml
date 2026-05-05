@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false"/>
+    
+    <!-- Домен 1: некорректный формат хэша (слишком короткий) -->
+    <domain-config>
+        <domain>api.example.com</domain>
+        <pin-set expiration="2025-12-31">
+            <pin digest="SHA-256">SHORT123</pin>  <!--Невалидный: не base64 SHA-256 -->
+        </pin-set>
+    </domain-config>
+    
+    <!-- Домен 2: некорректный алгоритм хэширования -->
+    <domain-config>
+        <domain>cdn.example.com</domain>
+        <pin-set>
+            <pin digest="MD5">AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</pin>  <!-- MD5 не поддерживается -->
+        </pin-set>
+    </domain-config>
+    
+    <!-- Домен 3: корректный хэш (для сравнения) -->
+    <domain-config>
+        <domain>safe.example.com</domain>
+        <pin-set>
+            <pin digest="SHA-256">AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</pin>
+            <pin digest="SHA-256">BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=</pin>
+        </pin-set>
+    </domain-config>
+</network-security-config>
