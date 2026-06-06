@@ -15,20 +15,12 @@ class SecurityInspection : LocalInspectionTool() {
     override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean): PsiElementVisitor {
         val file = holder.file
         val project = file.project
-
-        // Получаем сервис и данные
         val service = project.getService(SecurityAnalyzerService::class.java) ?: return PsiElementVisitor.EMPTY_VISITOR
         val projectPath = project.basePath ?: return PsiElementVisitor.EMPTY_VISITOR
 
-        // Используем блокирующий вызов только для Inspection API (оно работает в фоне)
-        // В будущем можно заменить на кэшированный результат из ExternalAnnotator
         val vulnerabilities = service.analyzeProjectBlocking(projectPath)
+        if (vulnerabilities.isEmpty()) return PsiElementVisitor.EMPTY_VISITOR
 
-        if (vulnerabilities.isEmpty()) {
-            return PsiElementVisitor.EMPTY_VISITOR
-        }
-
-        // Делегируем обработку специализированным визиторам
         return when {
             file is XmlFile -> XmlSecurityVisitor(holder, file, vulnerabilities)
             file is PsiJavaFile -> JavaSecurityVisitor(holder, file, vulnerabilities)
@@ -37,7 +29,7 @@ class SecurityInspection : LocalInspectionTool() {
         }
     }
 
-    override fun getDisplayName() = "AndroidNetworkSecurityInspection"
+    override fun getDisplayName() = "Android Network Security Inspection"
     override fun getShortName() = "AndroidNetworkSecurity"
     override fun getGroupDisplayName() = "Security"
 }

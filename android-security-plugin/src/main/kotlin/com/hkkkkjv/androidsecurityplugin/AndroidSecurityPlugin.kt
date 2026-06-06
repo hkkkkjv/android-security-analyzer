@@ -5,12 +5,13 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.startup.ProjectActivity
 
 class AndroidSecurityPlugin : ProjectActivity {
+
     companion object {
         private val LOG = Logger.getInstance(AndroidSecurityPlugin::class.java)
+        private const val PLUGIN_NAME = "Android Network Security Analyzer"
     }
 
-
     override suspend fun execute(project: Project) {
-        LOG.warn("Android Network Security Plugin initialized for project: ${project.name}")
+        LOG.info("$PLUGIN_NAME initialized for project: ${project.name}")
     }
 }
