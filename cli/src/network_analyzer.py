@@ -291,22 +291,25 @@ class InsecureHttpAnalyzer:
         results = []
         
         try:
-            tree = ET.parse(strings_path)
+            tree, line_mapping = parse_xml_with_linenumbers(strings_path)
             root = tree.getroot()
         except ET.ParseError:
             return results
         
-        for i, string_el in enumerate(root.findall("string"), start=1):
+        for string_el in root.findall("string"):
             value = string_el.text or ""
             if value.startswith("http://"):
                 name = string_el.get("name", "unknown")
+                # Получаем точный номер строки элемента
+                line_num = get_element_line_number(string_el, line_mapping)
+                
                 results.append(Vulnerability(
                     id=VulnerabilityTemplates.HTTP_IN_STRINGS["id"],
                     severity=VulnerabilityTemplates.HTTP_IN_STRINGS["severity"],
                     cvss_score=VulnerabilityTemplates.HTTP_IN_STRINGS["cvss_score"],
                     category=VulnerabilityTemplates.HTTP_IN_STRINGS["category"],
                     description=VulnerabilityTemplates.HTTP_IN_STRINGS["description"].format(name=name, url=value),
-                    location=format_location(strings_path, i),
+                    location=format_location(strings_path, line_num),  # ← ИСПРАВЛЕНО
                     recommendation=VulnerabilityTemplates.HTTP_IN_STRINGS["recommendation"].format(name=name)
                 ))
         

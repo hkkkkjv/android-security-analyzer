@@ -67,7 +67,8 @@ class AndroidManifestAnalyzer:
         
         if cleartext == "true":
             # Находим номер строки через поиск в исходном тексте
-            lineno = self._find_element_line(manifest_path, "application")
+            lineno = self._find_attribute_line(manifest_path, "usesCleartextTraffic")
+
             
             results.append(Vulnerability(
                 id="MANIFEST_CLEARTEXT_001",
@@ -98,7 +99,7 @@ class AndroidManifestAnalyzer:
             # Ожидаемый путь: @xml/network_security_config → res/xml/network_security_config.xml
             expected_path = Path(project_path) / "app" / "src" / "main" / "res" / "xml" / "network_security_config.xml"
             if not expected_path.exists():
-                lineno = self._find_element_line(manifest_path, "application")
+                lineno = self._find_attribute_line(manifest_path, "networkSecurityConfig")
                 results.append(Vulnerability(
                     id="MANIFEST_NSC_BROKEN_REF_001",
                     severity="HIGH",
@@ -206,6 +207,29 @@ class AndroidManifestAnalyzer:
             with open(manifest_path, "r", encoding="utf-8") as f:
                 for i, line in enumerate(f, start=1):
                     if "uses-permission" in line and permission_name in line:
+                        return i
+        except (OSError, UnicodeDecodeError):
+            pass
+        return 1
+
+    def _find_attribute_line(self, manifest_path: Path, attribute_name: str) -> int:
+        """
+        Находит номер строки, где встречается указанный атрибут.
+        В отличие от _find_element_line, ищет именно имя атрибута, 
+        что критично для многострочных тегов вроде <application>.
+        
+        Args:
+            manifest_path: Путь к AndroidManifest.xml
+            attribute_name: Имя атрибута для поиска (напр. "usesCleartextTraffic")
+        
+        Returns:
+            Номер строки (1-based) или 1 если не найдено
+        """
+        try:
+            with open(manifest_path, "r", encoding="utf-8") as f:
+                for i, line in enumerate(f, start=1):
+                    # Простая и надежная проверка: если имя атрибута есть в строке
+                    if attribute_name in line:
                         return i
         except (OSError, UnicodeDecodeError):
             pass
