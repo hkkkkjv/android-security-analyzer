@@ -170,20 +170,28 @@ class CertificatePinningCodeAnalyzer:
         except (OSError, UnicodeDecodeError):
             return results
         
-        # 1. Проверка на TrustAll Manager
+        # 1. Проверка на TrustAll Manager (именованные классы)
         results += self._check_trust_all(filepath, content, lines)
         
-        # 2. Проверка на HostnameVerifier bypass
+        # 2. Проверка на анонимные TrustManager
+        results += self._check_anonymous_trust_all(filepath, content, lines)
+        
+        # 3. Проверка на HostnameVerifier bypass
         results += self._check_hostname_bypass(filepath, content, lines)
         
-        # 3. Проверка на кастомный sslSocketFactory
+        # 4. Проверка на кастомный sslSocketFactory
         results += self._check_custom_ssl_factory(filepath, content, lines)
         
-        # 4. Проверка на CertificatePinner и количество пинов
+        # 5. Проверка на CertificatePinner и количество пинов
         results += self._check_certificate_pinner(filepath, content, lines)
+        
+        # 6. НОВОЕ: Проверка на OkHttpClient без certificatePinner
+        results += self._check_missing_pinning_in_client(filepath, content, lines)
+        
+        # 7. Проверка на отсутствие pinning для доменов
         results += self._check_missing_pinning_any(filepath, content, lines)
 
-        # 5. Контекстный анализ: missing pinning для доменов из конфига
+        # 8. Контекстный анализ
         results += self._check_missing_pinning_contextual(filepath, content, lines)
         
         return results
@@ -191,24 +199,27 @@ class CertificatePinningCodeAnalyzer:
     def _check_trust_all(self, filepath: str, content: str, lines: List[str]) -> List[Vulnerability]:
         """
         Ищет опасные реализации X509TrustManager (TrustAll).
-        
-        Args:
-            filepath: Путь к файлу
-            content: Содержимое файла
-            lines: Список строк файла
-        
-        Returns:
-            Список уязвимостей типа TrustAll
+        Создаёт отдельную уязвимость для каждого пустого метода.
         """
         results = []
         
-        if not PinningPatterns.TRUST_MANAGER_CLASS.search(content):
+        # Проверяем, что класс реализует X509TrustManager
+        if not re.search(r'class\s+\w+\s+implements\s+[^{]*X509TrustManager', content):
             return results
         
-        for match in PinningPatterns.EMPTY_TRUST_CHECK.finditer(content):
-            method_content = match.group(0)
-            # Если метод пустой или содержит только возврат без проверки
-            if re.search(r'\{\s*\}', method_content) or re.search(r'return\s+[^;]*;?\s*\}', method_content):
+        # Ищем пустые методы checkServerTrusted и checkClientTrusted
+        method_pattern = re.compile(
+            r'(?:public\s+)?void\s+(checkServerTrusted|checkClientTrusted)\s*\([^)]*\)'
+            r'(?:\s*throws\s+CertificateException)?\s*\{([^}]*)\}',
+            re.DOTALL
+        )
+        
+        for match in method_pattern.finditer(content):
+            method_name = match.group(1)
+            body = match.group(2).strip()
+            
+            # Пустое тело или только комментарии
+            if not body or re.match(r'^\s*(?://[^\n]*\s*)*$', body):
                 line_num = content[:match.start()].count('\n') + 1
                 snippet = lines[line_num - 1].strip() if line_num <= len(lines) else ""
                 
@@ -217,53 +228,147 @@ class CertificatePinningCodeAnalyzer:
                     severity=VulnerabilityTemplates.PINNING_TRUST_ALL["severity"],
                     cvss_score=VulnerabilityTemplates.PINNING_TRUST_ALL["cvss_score"],
                     category=VulnerabilityTemplates.PINNING_TRUST_ALL["category"],
-                    description=VulnerabilityTemplates.PINNING_TRUST_ALL["description"],
+                    description=f"Метод {method_name}() в X509TrustManager имеет пустую реализацию. Это отключает проверку {'клиентских' if 'Client' in method_name else 'серверных'} сертификатов и делает приложение уязвимым к MITM-атакам.",
                     location=format_location(filepath, line_num),
-                    recommendation=VulnerabilityTemplates.PINNING_TRUST_ALL["recommendation"],
+                    recommendation=f"Реализуйте корректную проверку {'клиентских' if 'Client' in method_name else 'серверных'} сертификатов в {method_name}() или используйте стандартный TrustManager.",
                     code_snippet=snippet
                 ))
-                break  # Одна уязвимость на файл достаточно
+        
+        return results
+
+    def _check_anonymous_trust_all(self, filepath: str, content: str, lines: List[str]) -> List[Vulnerability]:
+        """
+        Ищет анонимные реализации X509TrustManager с пустыми методами проверки.
+        
+        Поддерживает:
+        - Kotlin: object : X509TrustManager { ... }
+        - Java: new X509TrustManager() { ... }
+        - Kotlin: object : X509TrustManager внутри sslSocketFactory()
+        """
+        results = []
+        
+        # Паттерн 1: Kotlin анонимный объект
+        # Ищет: object : X509TrustManager { ... }
+        kotlin_pattern = re.compile(
+            r'object\s*:\s*X509TrustManager\s*\{',
+            re.IGNORECASE
+        )
+        
+        # Паттерн 2: Java анонимный класс
+        # Ищет: new X509TrustManager() { ... }
+        java_pattern = re.compile(
+            r'new\s+X509TrustManager\s*\(\s*\)\s*\{',
+            re.IGNORECASE
+        )
+        
+        # Ищем любое из двух совпадений
+        match = kotlin_pattern.search(content) or java_pattern.search(content)
+        if not match:
+            return results
+        
+        # Находим позицию начала анонимного класса
+        start_pos = match.start()
+        line_num = content[:start_pos].count('\n') + 1
+        
+        # Извлекаем тело анонимного класса (до соответствующей закрывающей скобки)
+        # Ищем все методы checkClientTrusted и checkServerTrusted
+        body_start = match.end()
+        brace_count = 1
+        body_end = body_start
+        
+        while body_end < len(content) and brace_count > 0:
+            if content[body_end] == '{':
+                brace_count += 1
+            elif content[body_end] == '}':
+                brace_count -= 1
+            body_end += 1
+        
+        body = content[body_start:body_end]
+        
+        # Проверяем, есть ли пустые методы проверки
+        method_pattern = re.compile(
+            r'(?:override\s+)?fun\s+(?:checkServerTrusted|checkClientTrusted)\s*\([^)]*\)[^{]*\{([^}]*)\}',
+            re.DOTALL
+        )
+        
+        empty_methods = []
+        for method_match in method_pattern.finditer(body):
+            method_body = method_match.group(1).strip()
+            # Пустое тело или только комментарии
+            if not method_body or re.match(r'^\s*(?://[^\n]*\s*)*$', method_body):
+                method_name = "checkServerTrusted" if "checkServerTrusted" in method_match.group(0) else "checkClientTrusted"
+                empty_methods.append(method_name)
+        
+        # Также проверяем Java-синтаксис методов
+        java_method_pattern = re.compile(
+            r'(?:public\s+)?void\s+(?:checkServerTrusted|checkClientTrusted)\s*\([^)]*\)[^{]*\{([^}]*)\}',
+            re.DOTALL
+        )
+        
+        for method_match in java_method_pattern.finditer(body):
+            method_body = method_match.group(1).strip()
+            if not method_body or re.match(r'^\s*(?://[^\n]*\s*)*$', method_body):
+                method_name = "checkServerTrusted" if "checkServerTrusted" in method_match.group(0) else "checkClientTrusted"
+                if method_name not in empty_methods:
+                    empty_methods.append(method_name)
+        
+        if empty_methods:
+            snippet = lines[line_num - 1].strip() if line_num <= len(lines) else ""
+            
+            results.append(Vulnerability(
+                id=VulnerabilityTemplates.PINNING_TRUST_ALL["id"],
+                severity=VulnerabilityTemplates.PINNING_TRUST_ALL["severity"],
+                cvss_score=VulnerabilityTemplates.PINNING_TRUST_ALL["cvss_score"],
+                category=VulnerabilityTemplates.PINNING_TRUST_ALL["category"],
+                description=f"Анонимная реализация X509TrustManager с пустыми методами проверки сертификатов ({', '.join(empty_methods)}). Это полностью отключает валидацию SSL/TLS и делает приложение уязвимым к MITM-атакам.",
+                location=format_location(filepath, line_num),
+                recommendation=VulnerabilityTemplates.PINNING_TRUST_ALL["recommendation"],
+                code_snippet=snippet
+            ))
         
         return results
 
     def _check_missing_pinning_any(self, filepath: str, content: str, lines: List[str]) -> List[Vulnerability]:
         """
         Детектит использование доменов без ANY pinning (ни в конфиге, ни в коде).
-        
         """
         results = []
         
-        # 1. Находим все домены с их позициями
-        domain_matches: Dict[str, re.Match] = {}
+        # 1. Находим ВСЕ домены с их позициями (группируем по домену)
+        domain_matches: Dict[str, List[re.Match]] = {}  # ← ИЗМЕНЕНО: List[re.Match]
         for match in HttpPatterns.HARDCODED_DOMAIN.finditer(content):
             domain = match.group(1)
             if domain and not domain.startswith("localhost") and not domain.startswith("127.0.0.1"):
+                # ИСПРАВЛЕНИЕ: добавляем ВСЕ вхождения, а не только первое
                 if domain not in domain_matches:
-                    domain_matches[domain] = match
+                    domain_matches[domain] = []
+                domain_matches[domain].append(match)
         
         if not domain_matches:
             return results
         
         # 2. Для КАЖДОГО домена проверяем, есть ли его pinning в этом файле
-        for domain, match in domain_matches.items():
+        for domain, matches in domain_matches.items():  # ← ИЗМЕНЕНО: итерируемся по matches
             # Ищем .add("этот_домен", ...) в содержимом файла
             domain_pinner_pattern = rf'\.add\s*\(\s*["\']{re.escape(domain)}["\']\s*,\s*["\'](?:sha256/)?[A-Za-z0-9+/=]+["\']'
             has_pinning_for_domain = bool(re.search(domain_pinner_pattern, content, re.IGNORECASE))
             
             if not has_pinning_for_domain:
-                line_num = content[:match.start()].count('\n') + 1
-                snippet = lines[line_num - 1].strip() if line_num <= len(lines) else ""
-                
-                results.append(Vulnerability(
-                    id=VulnerabilityTemplates.PINNING_MISSING_ANY["id"],
-                    severity=VulnerabilityTemplates.PINNING_MISSING_ANY["severity"],
-                    cvss_score=VulnerabilityTemplates.PINNING_MISSING_ANY["cvss_score"],
-                    category=VulnerabilityTemplates.PINNING_MISSING_ANY["category"],
-                    description=VulnerabilityTemplates.PINNING_MISSING_ANY["description"].format(domain=domain),
-                    location=format_location(filepath, line_num),
-                    recommendation=VulnerabilityTemplates.PINNING_MISSING_ANY["recommendation"].format(domain=domain),
-                    code_snippet=snippet
-                ))
+                # ИСПРАВЛЕНИЕ: создаём уязвимость для КАЖДОГО вхождения домена
+                for match in matches:
+                    line_num = content[:match.start()].count('\n') + 1
+                    snippet = lines[line_num - 1].strip() if line_num <= len(lines) else ""
+                    
+                    results.append(Vulnerability(
+                        id=VulnerabilityTemplates.PINNING_MISSING_ANY["id"],
+                        severity=VulnerabilityTemplates.PINNING_MISSING_ANY["severity"],
+                        cvss_score=VulnerabilityTemplates.PINNING_MISSING_ANY["cvss_score"],
+                        category=VulnerabilityTemplates.PINNING_MISSING_ANY["category"],
+                        description=VulnerabilityTemplates.PINNING_MISSING_ANY["description"].format(domain=domain),
+                        location=format_location(filepath, line_num),
+                        recommendation=VulnerabilityTemplates.PINNING_MISSING_ANY["recommendation"].format(domain=domain),
+                        code_snippet=snippet
+                    ))
         
         return results
     
@@ -339,36 +444,114 @@ class CertificatePinningCodeAnalyzer:
     def _check_certificate_pinner(self, filepath: str, content: str, lines: List[str]) -> List[Vulnerability]:
         """
         Проверяет использование CertificatePinner и количество пинов.
+        ИСПРАВЛЕНО: теперь анализирует каждый CertificatePinner.Builder() отдельно.
         """
         results = []
         
-        if not PinningPatterns.CERT_PINNER_ADD_PIN.search(content):
+        # Паттерн для поиска CertificatePinner.Builder()
+        builder_pattern = re.compile(r'CertificatePinner\.Builder\(\)', re.IGNORECASE)
+        
+        # Находим все CertificatePinner.Builder() в файле
+        builders = list(builder_pattern.finditer(content))
+        
+        if not builders:
             return results
         
-        pin_matches = PinningPatterns.PIN_HASH_PATTERN.findall(content)
+        # Паттерн для поиска .add("domain", "sha256/hash")
+        add_pattern = re.compile(
+            r'\.add\s*\(\s*["\']([^"\']+)["\']\s*,\s*["\'](?:sha256/)?([A-Za-z0-9+/=]+)["\']',
+            re.IGNORECASE
+        )
         
-        # Считаем общее количество пинов (каждый кортеж — один пин)
-        pin_count = len(pin_matches)
+        # Для каждого CertificatePinner.Builder() считаем количество пинов
+        for builder_match in builders:
+            builder_start = builder_match.start()
+            builder_line = content[:builder_start].count('\n') + 1
+            
+            # Ищем .build() после этого Builder()
+            build_match = re.search(r'\.build\(\)', content[builder_start:])
+            if not build_match:
+                continue
+            
+            builder_end = builder_start + build_match.end()
+            builder_block = content[builder_start:builder_end]
+            
+            # Считаем количество .add() в этом блоке
+            pins = add_pattern.findall(builder_block)
+            pin_count = len(pins)
+            
+            # Если только один пин — предупреждение о риске ротации
+            if pin_count == 1:
+                domain, pin_hash = pins[0]
+                snippet = lines[builder_line - 1].strip() if builder_line <= len(lines) else ""
+                
+                results.append(Vulnerability(
+                    id=VulnerabilityTemplates.PINNING_SINGLE["id"],
+                    severity=VulnerabilityTemplates.PINNING_SINGLE["severity"],
+                    cvss_score=VulnerabilityTemplates.PINNING_SINGLE["cvss_score"],
+                    category=VulnerabilityTemplates.PINNING_SINGLE["category"],
+                    description=VulnerabilityTemplates.PINNING_SINGLE["description"].format(domain=domain),
+                    location=format_location(filepath, builder_line),
+                    recommendation=VulnerabilityTemplates.PINNING_SINGLE["recommendation"].format(domain=domain),
+                    code_snippet=snippet
+                ))
         
-        # Если только один пин — предупреждение о риске ротации
-        if pin_count == 1:
-            # Извлекаем домен из первого совпадения
-            domain, pin_hash = pin_matches[0]
+        return results
+    
+    def _check_missing_pinning_in_client(self, filepath: str, content: str, lines: List[str]) -> List[Vulnerability]:
+        """
+        Ищет OkHttpClient.Builder().build() без .certificatePinner() в том же блоке.
+        ИСПРАВЛЕНО: теперь привязывает уязвимость к строке с .build(), а не с Builder().
+        """
+        results = []
+        
+        # Паттерн для поиска OkHttpClient.Builder()
+        builder_pattern = re.compile(
+            r'OkHttpClient\.Builder\(\)',
+            re.IGNORECASE
+        )
+        
+        # Находим все OkHttpClient.Builder() в файле
+        builders = list(builder_pattern.finditer(content))
+        
+        if not builders:
+            return results
+        
+        # Для каждого Builder проверяем, есть ли .certificatePinner() перед .build()
+        for builder_match in builders:
+            builder_start = builder_match.start()
             
-            match = PinningPatterns.CERT_PINNER_ADD_PIN.search(content)
-            line_num = content[:match.start()].count('\n') + 1 if match else 1
-            snippet = lines[line_num - 1].strip() if line_num <= len(lines) else ""
+            # Ищем .build() после этого Builder()
+            build_match = re.search(r'\.build\(\)', content[builder_start:])
+            if not build_match:
+                continue
             
-            results.append(Vulnerability(
-                id=VulnerabilityTemplates.PINNING_SINGLE["id"],
-                severity=VulnerabilityTemplates.PINNING_SINGLE["severity"],
-                cvss_score=VulnerabilityTemplates.PINNING_SINGLE["cvss_score"],
-                category=VulnerabilityTemplates.PINNING_SINGLE["category"],
-                description=VulnerabilityTemplates.PINNING_SINGLE["description"].format(domain=domain),
-                location=format_location(filepath, line_num),
-                recommendation=VulnerabilityTemplates.PINNING_SINGLE["recommendation"].format(domain=domain),
-                code_snippet=snippet
-            ))
+            # ИСПРАВЛЕНИЕ: Вычисляем строку с .build(), а не с Builder()
+            build_absolute_pos = builder_start + build_match.start()
+            build_line = content[:build_absolute_pos].count('\n') + 1
+            
+            builder_end = builder_start + build_match.end()
+            builder_block = content[builder_start:builder_end]
+            
+            # Проверяем, есть ли .certificatePinner() в этом блоке
+            if not re.search(r'\.certificatePinner\(', builder_block, re.IGNORECASE):
+                # Также проверяем, есть ли .sslSocketFactory() (кастомная SSL конфигурация)
+                has_custom_ssl = bool(re.search(r'\.sslSocketFactory\(', builder_block, re.IGNORECASE))
+                
+                if not has_custom_ssl:
+                    # ИСПРАВЛЕНИЕ: Используем build_line вместо builder_line
+                    snippet = lines[build_line - 1].strip() if build_line <= len(lines) else ""
+                    
+                    results.append(Vulnerability(
+                        id="PINNING_MISSING_CLIENT_008",
+                        severity="MEDIUM",
+                        cvss_score=5.3,
+                        category="Certificate Pinning",
+                        description=f"OkHttpClient создан без certificate pinning. Это делает приложение уязвимым к MITM-атакам даже при использовании HTTPS.",
+                        location=format_location(filepath, build_line),  # ← ИСПРАВЛЕНО
+                        recommendation="Добавьте .certificatePinner(CertificatePinner.Builder().add(\"domain.com\", \"sha256/HASH=\").build()) в цепочку вызовов OkHttpClient.Builder().",
+                        code_snippet=snippet
+                    ))
         
         return results
     
