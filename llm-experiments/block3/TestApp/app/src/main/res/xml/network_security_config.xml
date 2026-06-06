@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+
+    <!-- CRITICAL: cleartextTrafficPermitted="true" в base-config -->
+    <base-config cleartextTrafficPermitted="true">
+        <!-- MEDIUM: доверие пользовательским сертификатам -->
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </base-config>
+
+    <!-- HIGH: cleartext для конкретного домена -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">api.insecure-example.com</domain>
+        <trust-anchors>
+            <certificates src="user" />
+        </trust-anchors>
+    </domain-config>
+
+    <!-- HIGH: domain-config без pin-set -->
+    <domain-config>
+        <domain includeSubdomains="true">api.nopinning.com</domain>
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </domain-config>
+
+    <!-- MEDIUM: только один пин (риск ротации) -->
+    <domain-config>
+        <domain includeSubdomains="true">api.singlepin.com</domain>
+        <pin-set expiration="2026-12-31">
+            <pin digest="SHA-256">AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</pin>
+        </pin-set>
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </domain-config>
+
+    <!-- HIGH: невалидный хэш пина -->
+    <domain-config>
+        <domain includeSubdomains="true">api.invalidhash.com</domain>
+        <pin-set>
+            <pin digest="SHA-256">invalid_hash_not_base64</pin>
+        </pin-set>
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </domain-config>
+
+    <!-- HIGH: пустой pin-set -->
+    <domain-config>
+        <domain includeSubdomains="true">api.emptypinset.com</domain>
+        <pin-set expiration="2026-12-31"></pin-set>
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </domain-config>
+
+</network-security-config>
